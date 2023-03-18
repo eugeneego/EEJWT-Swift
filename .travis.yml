@@ -1,0 +1,7 @@
+language: swift
+osx_image: xcode14.2
+branches:
+  only:
+    - main
+script:
+  - swift test
