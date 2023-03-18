@@ -1,5 +1,7 @@
 # EEJWT
 
+![Build](https://github.com/eugeneego/EEJWT-Swift/actions/workflows/swift.yml/badge.svg)
+
 Lightweight JSON Web Tokens library for iOS/macOS written in Swift.
 
 The main goal of the library to be simple as possible:
