@@ -1,6 +1,6 @@
 # EEJWT
 
-![Build](https://github.com/eugeneego/EEJWT-Swift/actions/workflows/swift.yml/badge.svg)
+[![](https://github.com/eugeneego/EEJWT-Swift/actions/workflows/swift.yml/badge.svg)](https://github.com/eugeneego/EEJWT-Swift/actions/workflows/swift.yml)
 [![](https://img.shields.io/endpoint?url=https%3A%2F%2Fswiftpackageindex.com%2Fapi%2Fpackages%2Feugeneego%2FEEJWT-Swift%2Fbadge%3Ftype%3Dswift-versions)](https://swiftpackageindex.com/eugeneego/EEJWT-Swift)
 [![](https://img.shields.io/endpoint?url=https%3A%2F%2Fswiftpackageindex.com%2Fapi%2Fpackages%2Feugeneego%2FEEJWT-Swift%2Fbadge%3Ftype%3Dplatforms)](https://swiftpackageindex.com/eugeneego/EEJWT-Swift)
 
