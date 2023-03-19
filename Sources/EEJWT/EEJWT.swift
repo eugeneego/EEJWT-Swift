@@ -128,10 +128,6 @@ public struct JWT {
 
 // MARK: - Algorithm
 
-extension JWTAlgorithm {
-    public typealias Alg = JWT.Algorithm
-}
-
 extension JWT {
     public enum Algorithm {
         public static func hs256(key: Data) -> JWTAlgorithm {
@@ -409,8 +405,7 @@ extension JWT {
             index += keyData[index] > 0x80 ? Int(keyData[index]) - 0x80 + 1 : 1
             guard keyData[index] == 0 else { throw Error.invalidKey(nil) }
             index += 1
-            let data = keyData.subdata(in: index ..< keyData.count)
-            return data
+            return keyData.subdata(in: index ..< keyData.count)
         }
     }
 }
@@ -446,9 +441,8 @@ extension JWT {
                 return try privateKey(sec1: data)
             } else if parts[1] == "BEGINPRIVATEKEY" {
                 return try privateKey(pkcs8: data)
-            } else {
-                throw Error.invalidKey(nil)
             }
+            throw Error.invalidKey(nil)
         }
 
         static func publicKey(string: String) throws -> SecKey {
@@ -462,7 +456,7 @@ extension JWT {
         static func privateKey(sec1: Data) throws -> SecKey {
             let (element, _) = ASN1.readElement(sec1)
             guard
-                case .sequence(elements: let sequence) = element,
+                case .sequence(let sequence) = element,
                 sequence.count >= 4,
                 case .bytes(let privateKeyData) = sequence[1],
                 case .constructed(_, .bytes(let publicKeyData)) = sequence[3]
