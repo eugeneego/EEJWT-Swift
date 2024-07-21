@@ -46,8 +46,8 @@ public struct JWT {
             header["typ"] = "JWT"
         }
         header["alg"] = algorithm.name
-        let headerData = try JSON.encode(dictionary: header, encoder: encoder)
-        let claimsData = try JSON.encode(dictionary: claims, encoder: encoder)
+        let headerData = try Self.encode(dictionary: header, encoder: encoder)
+        let claimsData = try Self.encode(dictionary: claims, encoder: encoder)
         return try sign(header: headerData, claims: claimsData, algorithm: algorithm)
     }
 
@@ -100,8 +100,8 @@ public struct JWT {
 
     public func decodeAsString(token: String) throws -> (header: String, claims: String) {
         let data = try decodeAsData(token: token)
-        guard let header = String(data: data.header, encoding: .utf8) else { throw Error.invalidToken(nil) }
-        guard let claims = String(data: data.claims, encoding: .utf8) else { throw Error.invalidToken(nil) }
+        let header = String(decoding: data.header, as: UTF8.self)
+        let claims = String(decoding: data.claims, as: UTF8.self)
         return (header, claims)
     }
 
@@ -110,8 +110,8 @@ public struct JWT {
         decoder: JSONDecoder = JSON.defaultDecoder
     ) throws -> (header: [String: Any], claims: [String: Any]) {
         let data = try decodeAsData(token: token)
-        let header = try JSON.decode(data: data.header, decoder: decoder)
-        let claims = try JSON.decode(data: data.claims, decoder: decoder)
+        let header = try Self.decode(data: data.header, decoder: decoder)
+        let claims = try Self.decode(data: data.claims, decoder: decoder)
         return (header, claims)
     }
 
@@ -178,7 +178,7 @@ extension JWT {
             ECAlg(name: "ES512", privateKey: privateKey, publicKey: publicKey, hash: Digest.sha512, algorithm: .ecdsaSignatureDigestX962SHA512)
         }
 
-        struct HMACAlg: JWTAlgorithm {
+        private struct HMACAlg: JWTAlgorithm {
             let name: String
             let key: Data
             let signer: (_ data: Data, _ key: Data) -> Data
@@ -193,7 +193,7 @@ extension JWT {
             }
         }
 
-        struct RSAAlg: JWTAlgorithm {
+        private struct RSAAlg: JWTAlgorithm {
             let name: String
             let privateKey: String
             let publicKey: String
@@ -209,7 +209,7 @@ extension JWT {
             }
         }
 
-        struct ECAlg: JWTAlgorithm {
+        private struct ECAlg: JWTAlgorithm {
             let name: String
             let privateKey: String
             let publicKey: String
@@ -228,7 +228,7 @@ extension JWT {
             }
         }
 
-        static func decompose(token: String) -> (data: Data, signature: Data)? {
+        private static func decompose(token: String) -> (data: Data, signature: Data)? {
             let parts = token.components(separatedBy: ".")
             guard parts.count == 3, let signature = Base64.decode(string: parts[2]) else { return nil }
             return (Data("\(parts[0]).\(parts[1])".utf8), signature)
@@ -261,53 +261,53 @@ extension JWT {
                 self.alg = alg
             }
         }
+    }
 
-        struct AnyCodable: Codable {
-            var value: Codable
+    private struct AnyCodable: Codable {
+        var value: Codable
 
-            init(value: Codable) {
-                self.value = value
+        init(value: Codable) {
+            self.value = value
+        }
+
+        init(from decoder: Decoder) throws {
+            let container = try decoder.singleValueContainer()
+            if container.decodeNil() {
+                value = Optional<Self>.none
+                return
             }
-
-            init(from decoder: Decoder) throws {
-                let container = try decoder.singleValueContainer()
-                if container.decodeNil() {
-                    value = Optional<Self>.none
-                    return
-                }
-                let types: [Codable.Type] = [Bool.self, Int.self, UInt.self, Double.self, String.self, [AnyCodable].self, [String: AnyCodable].self]
-                let value = types.lazy.compactMap { type -> Codable? in try? container.decode(type) }.first
-                guard let value else { throw DecodingError.dataCorruptedError(in: container, debugDescription: "AnyDecodable failed") }
-                self.value = value
-            }
-
-            func encode(to encoder: Encoder) throws {
-                var container = encoder.singleValueContainer()
-                try container.encode(value)
-            }
+            let types: [Codable.Type] = [Bool.self, Int.self, UInt.self, Double.self, String.self, [AnyCodable].self, [String: AnyCodable].self]
+            let value = types.lazy.compactMap { type -> Codable? in try? container.decode(type) }.first
+            guard let value else { throw DecodingError.dataCorruptedError(in: container, debugDescription: "AnyDecodable failed") }
+            self.value = value
         }
 
-        static func encode(dictionary: [String: Codable], encoder: JSONEncoder) throws -> Data {
-            try encoder.encode(dictionary.mapValues(AnyCodable.init))
+        func encode(to encoder: Encoder) throws {
+            var container = encoder.singleValueContainer()
+            try container.encode(value)
         }
+    }
 
-        static func decode(data: Data, decoder: JSONDecoder) throws -> [String: Any] {
-            let values = try decoder.decode([String: AnyCodable].self, from: data)
-            return values.mapValues(mapAny)
-        }
+    private static func encode(dictionary: [String: Codable], encoder: JSONEncoder) throws -> Data {
+        try encoder.encode(dictionary.mapValues(AnyCodable.init))
+    }
 
-        static func mapAny(_ value: AnyCodable) -> Any {
-            (value.value as? [AnyCodable])?.map(mapAny)
-                ?? (value.value as? [String: AnyCodable])?.mapValues(mapAny)
-                ?? value.value
-        }
+    private static func decode(data: Data, decoder: JSONDecoder) throws -> [String: Any] {
+        let values = try decoder.decode([String: AnyCodable].self, from: data)
+        return values.mapValues(mapAny)
+    }
+
+    private static func mapAny(_ value: AnyCodable) -> Any {
+        (value.value as? [AnyCodable])?.map(mapAny)
+            ?? (value.value as? [String: AnyCodable])?.mapValues(mapAny)
+            ?? value.value
     }
 }
 
 // MARK: - Base64
 
 extension JWT {
-    enum Base64 {
+    private enum Base64 {
         static func encode(data: Data) -> String {
             data.base64EncodedString()
                 .replacingOccurrences(of: "+", with: "-")
@@ -330,7 +330,7 @@ extension JWT {
 // MARK: - Digest
 
 extension JWT {
-    enum Digest {
+    private enum Digest {
         static func hmacSHA256(data: Data, key: Data) -> Data {
             Data(HMAC<SHA256>.authenticationCode(for: data, using: .init(data: key)))
         }
@@ -360,7 +360,7 @@ extension JWT {
 // MARK: - RSA
 
 extension JWT {
-    enum RSA {
+    private enum RSA {
         static func sign(data: Data, privateKey: String, algorithm: SecKeyAlgorithm) throws -> Data {
             let key = try key(string: privateKey, isPrivate: true)
             return try Signature.sign(data: data, privateKey: key, algorithm: algorithm)
@@ -413,7 +413,7 @@ extension JWT {
 // MARK: - Elliptic Curve
 
 extension JWT {
-    enum EllipticCurve {
+    private enum EllipticCurve {
         static func sign(data: Data, privateKey: String, algorithm: SecKeyAlgorithm) throws -> Data {
             let key = try Self.privateKey(string: privateKey)
             let asn1Signature = try Signature.sign(data: data, privateKey: key, algorithm: algorithm)
@@ -549,7 +549,7 @@ extension JWT {
 // MARK: - Signature
 
 extension JWT {
-    enum Signature {
+    private enum Signature {
         static func sign(data: Data, privateKey: SecKey, algorithm: SecKeyAlgorithm) throws -> Data {
             var error: Unmanaged<CFError>?
             guard let signature = SecKeyCreateSignature(privateKey, algorithm, data as CFData, &error) else {
@@ -577,7 +577,7 @@ extension JWT {
 // MARK: - ASN1 DER
 
 extension JWT {
-    struct ASN1 {
+    private struct ASN1 {
         indirect enum ASN1Element {
             case sequence([ASN1Element])
             case integer(Data)
